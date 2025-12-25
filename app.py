@@ -178,6 +178,7 @@ else:
 
 st.markdown(
     '<p class="subtitle">• Ultra-Safe Duplicate Remover • Complete Audit Trail •</p>',
+    unsafe_allow_html=True,
 )
 
 # Main container
