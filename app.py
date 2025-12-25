@@ -157,17 +157,24 @@ st.markdown("""
         letter-spacing: 3px;
     }
     </style>
+    
     """, unsafe_allow_html=True)
-# Logo using pure CSS - No files needed!
-st.markdown("""
-<div class="double-barrel-logo">
-    <div class="barrels-container">
-        <div class="barrel barrel-left"></div>
-        <div class="barrel barrel-right"></div>
-    </div>
-    <div class="logo-text">DOUBLEBARREL.QUEST</div>
-</div>
-""", unsafe_allow_html=True)
+# Display video logo if file exists
+if os.path.exists('logo.mp4'):
+    with open('logo.mp4', 'rb') as video_file:
+        video_bytes = video_file.read()
+    st.video(video_bytes, autoplay=True, loop=True, muted=True)
+els
+    # Logo using pure CSS - No files needed!
+    st.markdown("""
+    <div class="double-barrel-logo">
+            <div class="barrels-container">
+                <div class="barrel barrel-left"></div>
+                    <div class="barrel barrel-right"></div>
+            </div>
+        <div class="logo-text">DOUBLEBARREL.QUEST</div>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown(
     '<p class="subtitle">• Ultra-Safe Duplicate Remover • Complete Audit Trail •</p>',
