@@ -164,7 +164,7 @@ if os.path.exists('logo.mp4'):
     with open('logo.mp4', 'rb') as video_file:
         video_bytes = video_file.read()
     st.video(video_bytes, autoplay=True, loop=True, muted=True)
-els
+else:
     # Logo using pure CSS - No files needed!
     st.markdown("""
     <div class="double-barrel-logo">
