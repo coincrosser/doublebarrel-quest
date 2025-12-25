@@ -165,8 +165,8 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("# DOUBLEBARREL.QUEST")    '<p class="subtitle">• Ultra-Safe Duplicate Remover • Complete Audit Trail •</p>',
-    unsafe_allow_html=True
+st.markdown(
+    '<p class="subtitle">• Ultra-Safe Duplicate Remover • Complete Audit Trail •</p>',
 )
 
 # Main container
