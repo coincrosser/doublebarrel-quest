@@ -103,6 +103,8 @@ st.markdown(
 )
 
 # Logo and Title
+st.markdown("""
+<style>
 
     /* Double Barrel CSS Logo */
     .double-barrel-logo {
@@ -154,6 +156,8 @@ st.markdown(
         color: white;
         letter-spacing: 3px;
     }
+    </style>
+    """, unsafe_allow_html=True)
 # Logo using pure CSS - No files needed!
 st.markdown("""
 <div class="double-barrel-logo">
