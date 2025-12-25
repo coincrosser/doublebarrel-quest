@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "public": "public",
+    "redirects": [
+      {
+        "source": "/",
+        "destination": "https://doublebarrel-quest-en7hke6jbdyuzxe5zappbyh.streamlit.app/",
+        "type": 302
+      }
+    ]
+  }
+}
