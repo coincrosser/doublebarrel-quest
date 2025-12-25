@@ -103,18 +103,69 @@ st.markdown(
 )
 
 # Logo and Title
-st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-# Try video first (animated logo), then fall back to static image
-    s.path.exists('logo.mp4'):
-        st.video('logo.mp4')
-    elif os.path.exists('logo.gif'):
-        st.image('logo.gif', width=400)
-    elif os.path.exists('logo.png'):
-        st.image('logo.png', width=400)
-if ost.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("# DOUBLEBARREL.QUEST")st.markdown(
-    '<p class="subtitle">• Ultra-Safe Duplicate Remover • Complete Audit Trail •</p>',
+    /* Double Barrel CSS Logo */
+    .double-barrel-logo {
+        text-align: center;
+        padding: 2rem 0;
+    }
+    
+    .barrels-container {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .barrel {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #000000;
+        border: 4px solid;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .barrel-left {
+        border-color: #00FFFF;
+        box-shadow: 0 0 20px #00FFFF;
+    }
+    
+    .barrel-right {
+        border-color: #FF8C00;
+        box-shadow: 0 0 20px #FF8C00;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+            box-shadow: 0 0 20px currentColor;
+        }
+        50% {
+            opacity: 0.6;
+            box-shadow: 0 0 40px currentColor;
+        }
+    }
+    
+    .logo-text {
+        font-family: 'Courier New', monospace;
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: white;
+        letter-spacing: 3px;
+    }
+# Logo using pure CSS - No files needed!
+st.markdown("""
+<div class="double-barrel-logo">
+    <div class="barrels-container">
+        <div class="barrel barrel-left"></div>
+        <div class="barrel barrel-right"></div>
+    </div>
+    <div class="logo-text">DOUBLEBARREL.QUEST</div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("# DOUBLEBARREL.QUEST")    '<p class="subtitle">• Ultra-Safe Duplicate Remover • Complete Audit Trail •</p>',
     unsafe_allow_html=True
 )
 
