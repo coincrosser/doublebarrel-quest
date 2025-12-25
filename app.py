@@ -104,13 +104,13 @@ st.markdown(
 
 # Logo and Title
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-if os.path.exists('logo.png'):# Try video first (animated logo), then fall back to static image
-if os.path.exists('logo.mp4'):
-        st.video('logo.mp4')elif os.path.exists('logo.gif'):
-    st.image('logo.gif', width=400)
-elif os.path.exists('logo.png'):
-    st.image('logo.png', width=400)
-st.markdown("# DOUBLEBARREL.QUEST")
+# Try video first (animated logo), then fall back to static image
+    if os.path.exists('logo.mp4'):
+        st.video('logo.mp4')
+    elif os.path.exists('logo.gif'):
+        st.image('logo.gif', width=400)
+    elif os.path.exists('logo.png'):
+        st.image('logo.png', width=400)st.markdown("# DOUBLEBARREL.QUEST")
 st.markdown(
     '<p class="subtitle">• Ultra-Safe Duplicate Remover • Complete Audit Trail •</p>',
     unsafe_allow_html=True
