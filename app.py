@@ -109,6 +109,8 @@ st.markdown('<div class="logo-container">', unsafe_allow_html=True)
         st.video('logo.mp4')
     elif os.path.exists('logo.gif'):
         st.image('logo.gif', width=400)
+        st.markdown('</div>', unsafe_allow_html=True)
+
     elif os.path.exists('logo.png'):
         st.image('logo.png', width=400)st.markdown("# DOUBLEBARREL.QUEST")
 st.markdown(
