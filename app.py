@@ -105,7 +105,7 @@ st.markdown(
 # Logo and Title
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
 # Try video first (animated logo), then fall back to static image
-    if os.path.exists('logo.mp4'):
+    s.path.exists('logo.mp4'):
         st.video('logo.mp4')
     elif os.path.exists('logo.gif'):
         st.image('logo.gif', width=400)
