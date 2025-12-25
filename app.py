@@ -111,7 +111,7 @@ st.markdown('<div class="logo-container">', unsafe_allow_html=True)
         st.image('logo.gif', width=400)
     elif os.path.exists('logo.png'):
         st.image('logo.png', width=400)
-st.markdown('</div>', unsafe_allow_html=True)
+if ost.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("# DOUBLEBARREL.QUEST")st.markdown(
     '<p class="subtitle">• Ultra-Safe Duplicate Remover • Complete Audit Trail •</p>',
