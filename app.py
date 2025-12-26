@@ -215,6 +215,34 @@ if submitted:
 
         st.success("✅ Consolidation complete! Download your consolidated file below.")
         st.write(f"Output rows: **{len(result_df)}**")
+                
+        # Show processing log
+        original_count = len(df)
+        consolidated_count = len(result_df)
+        duplicates_removed = original_count - consolidated_count
+        
+        st.markdown("---")
+        st.markdown("### 📊 Processing Summary")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Original Entries", f"{original_count:,}")
+        with col2:
+            st.metric("Consolidated Contacts", f"{consolidated_count:,}")
+        with col3:
+            st.metric("Duplicates Removed", f"{duplicates_removed:,}", delta=f"-{duplicates_removed}")
+        
+        # Additional stats
+        total_acres = result_df['Total Acres'].sum()
+        unique_counties = result_df['Counties'].str.split(', ').explode().nunique()
+        
+        col4, col5 = st.columns(2)
+        with col4:
+            st.metric("Total Acres", f"{total_acres:,.2f}")
+        with col5:
+            st.metric("Unique Counties", unique_counties)
+        
+        st.markdown("---")
 
         # Convert to CSV for download
         csv_bytes = result_df.to_csv(index=False).encode("utf-8")
