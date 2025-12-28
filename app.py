@@ -151,4 +151,3 @@ def consolidate_contacts_expanded_df(df: pd.DataFrame) -> pd.DataFrame:
 st.title("🎯 DoubleBarrel.Quest")
 st.markdown("<h3 style='text-align: center; color: #94A3B8;'>Land Lease Contact Consolidation Tool</h3>", unsafe_allow_html=True)
 st.markdown("---")
-, removed_entries
