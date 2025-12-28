@@ -131,21 +131,115 @@ def consolidate_contacts_expanded_df(df: pd.DataFrame) -> pd.DataFrame:
     grouped_df = grouped_df.reset_index(drop=True)
 
     # Expand Address_List into Address_1, Address_2, ...
-        # ROBUST: Expand Address_List into Address_1, Address_2, ... columns
-    # Find the maximum number of addresses any grantor has
-    max_addresses = grouped_df['Address_List'].apply(len).max()
-    
-    # Create individual Address columns by extracting from list
-    for i in range(max_addresses):
-        grouped_df[f'Address_{i+1}'] = grouped_df['Address_List'].apply(
-                lambda addr_list: addr_list[i] if i < len(addr_list) else "")    # Drop the Address_List column now that we've expanded it
-    final_df = grouped_df.drop(columns=['Address_List'])
+    address_cols = pd.DataFrame(grouped_df['Address_List'].tolist(), index=grouped_df.index)
+    if not address_cols.empty:
+        address_cols.columns = [f'Address_{i+1}' for i in range(address_cols.shape[1])]
+        final_df = pd.concat([grouped_df.drop(columns=['Address_List']), address_cols], axis=1)
+    else:
+        final_df = grouped_df.drop(columns=['Address_List'])
 
     # Add Phone Number column
     final_df.insert(1, 'Phone Number', '')
 
     return final_df
+
 # Title
 st.title("🎯 DoubleBarrel.Quest")
 st.markdown("<h3 style='text-align: center; color: #94A3B8;'>Land Lease Contact Consolidation Tool</h3>", unsafe_allow_html=True)
 st.markdown("---")
+
+# Mode selection
+st.markdown("### 🎨 Select Processing Mode")
+st.markdown("Choose how to process your data:")
+
+mode = st.radio(
+    "Processing mode:",
+    ["Consolidation with Multiple Addresses (Expanded)", "Consolidation with Address History"],
+    index=0,
+    label_visibility="collapsed"
+)
+
+st.markdown("---")
+
+# Upload section with form
+st.markdown("### 📤 Upload Your File")
+st.markdown("**Required columns:** Grantor, Grantor Address, Instrument Date, Record Date, Section, Township, Area (Acres), County/Parish")
+
+with st.form("land_lease_upload_form"):
+    uploaded_file = st.file_uploader(
+        "Upload your land lease file (.csv, .xls, .xlsx)",
+        type=["csv", "xls", "xlsx"],
+        accept_multiple_files=False
+    )
+
+    submitted = st.form_submit_button("🚀 Submit for Processing")
+
+if submitted:
+    if uploaded_file is None:
+        st.error("❌ Please upload a CSV or Excel file before submitting.")
+    else:
+        filename = uploaded_file.name.lower()
+
+        try:
+            # Detect and read file
+            if filename.endswith(".csv"):
+                try:
+                    df = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
+                except UnicodeDecodeError:
+                    df = pd.read_csv(uploaded_file, encoding="utf-8")
+            else:
+                df = pd.read_excel(uploaded_file)
+        except Exception as e:
+            st.error(f"❌ Error reading file: {e}")
+            st.stop()
+
+        st.success(f"✅ File received: {uploaded_file.name}")
+        st.write(f"Detected **{len(df)}** rows and **{len(df.columns)}** columns.")
+        
+        # Preview data
+        with st.expander("👁️ Preview uploaded data (first 10 rows)", expanded=False):
+            st.dataframe(df.head(10), use_container_width=True)
+
+        # Run consolidation
+        with st.spinner("⚙️ Consolidating landowner records..."):
+            try:
+                if mode == "Consolidation with Multiple Addresses (Expanded)":
+                    result_df = consolidate_contacts_expanded_df(df)
+                else:
+                    # For now, use the same function for both modes
+                    result_df = consolidate_contacts_expanded_df(df)
+            except Exception as e:
+                st.error(f"❌ Error during consolidation: {e}")
+                st.info("Please ensure your CSV file has the required columns.")
+                st.stop()
+
+        st.success("✅ Consolidation complete! Download your consolidated file below.")
+        st.write(f"Output rows: **{len(result_df)}**")
+
+        # Convert to CSV for download
+        csv_bytes = result_df.to_csv(index=False).encode("utf-8")
+
+        st.download_button(
+            label="📥 Download Consolidated CSV",
+            data=csv_bytes,
+            file_name="Consolidated_Land_List_EXPANDED.csv",
+            mime="text/csv"
+        )
+        
+        # Preview consolidated data
+        with st.expander("👁️ Preview consolidated data (first 10 rows)", expanded=False):
+            st.dataframe(result_df.head(10), use_container_width=True)
+else:
+    st.info("👆 **Upload** your land lease CSV file to get started")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Footer
+st.markdown("---")
+st.markdown(
+    '<p style="text-align: center; opacity: 0.8;">'
+    '🔒 Secure • 🎯 Professional • ⚡ Fast • 💯 100% Free<br>'
+    '<strong>DoubleBarrel.Quest</strong> - Land Lease Contact Consolidation'
+    '</p>',
+    unsafe_allow_html=True
+)
