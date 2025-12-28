@@ -138,15 +138,13 @@ def consolidate_contacts_expanded_df(df: pd.DataFrame) -> pd.DataFrame:
     # Create individual Address columns by extracting from list
     for i in range(max_addresses):
         grouped_df[f'Address_{i+1}'] = grouped_df['Address_List'].apply(
-            lambda addr_list: addr_list[i] if i < len(addr_list) else "")
-    # Drop the Address_List column now that we've expanded it
+                lambda addr_list: addr_list[i] if i < len(addr_list) else "")    # Drop the Address_List column now that we've expanded it
     final_df = grouped_df.drop(columns=['Address_List'])
 
     # Add Phone Number column
     final_df.insert(1, 'Phone Number', '')
 
     return final_df
-
 # Title
 st.title("🎯 DoubleBarrel.Quest")
 st.markdown("<h3 style='text-align: center; color: #94A3B8;'>Land Lease Contact Consolidation Tool</h3>", unsafe_allow_html=True)
