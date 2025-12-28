@@ -145,7 +145,7 @@ def consolidate_contacts_expanded_df(df: pd.DataFrame) -> pd.DataFrame:
     # Add Phone Number column
     final_df.insert(1, 'Phone Number', '')
 
-    return (final_df, removed_entries)
+    return final_df
 
 # Title
 st.title("🎯 DoubleBarrel.Quest")
