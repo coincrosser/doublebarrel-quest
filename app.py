@@ -138,7 +138,7 @@ def consolidate_contacts_expanded_df(df: pd.DataFrame) -> pd.DataFrame:
     # Create individual Address columns by extracting from list
     for i in range(max_addresses):
         grouped_df[f'Address_{i+1}'] = grouped_df['Address_List'].apply(
-            lambda addr_list: addr_list[i] if i < len(addr_list) else ""
+            lambda addr_list: addr_list[i] if i < len(addr_list) else "")
     # Drop the Address_List column now that we've expanded it
     final_df = grouped_df.drop(columns=['Address_List'])
 
