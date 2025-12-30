@@ -112,12 +112,21 @@ def consolidate_contacts_expanded_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def calculate_metrics(raw_df, result_df):
-    return {
+    metrics = {
         "before": len(raw_df),
         "after": len(result_df),
         "removed": len(raw_df) - len(result_df),
-        "total_acres": result_df["Total Acres"].sum()
+        "total_acres": None
     }
+
+    # Safely detect acres column
+    for col in result_df.columns:
+        if col.strip().lower() == "total acres":
+            metrics["total_acres"] = result_df[col].fillna(0).sum()
+            break
+
+    return metrics
+
 
 # -------------------------------------------------
 # UI
@@ -176,7 +185,11 @@ if uploaded_file:
     c1.metric("Records Before", metrics["before"])
     c2.metric("Records After", metrics["after"])
     c3.metric("Duplicates Collapsed", metrics["removed"])
+    if metrics["total_acres"] is not None:
     c4.metric("Total Acres", f"{metrics['total_acres']:,.2f}")
+else:
+    c4.metric("Total Acres", "N/A")
+
 
     csv = result_df.to_csv(index=False).encode("utf-8")
     st.download_button(
