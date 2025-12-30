@@ -1,168 +1,131 @@
 import streamlit as st
 import pandas as pd
 
-# -------------------------------------------------
-# PAGE CONFIG
-# -------------------------------------------------
+# =================================================
+# CONFIG
+# =================================================
+DUPE_LOGIC_VERSION = "address_v1_strict"
+
 st.set_page_config(
     page_title="DoubleBarrel.Quest – Land Lease Consolidation",
     page_icon="🎯",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    layout="wide"
 )
 
-# -------------------------------------------------
-# STYLES
-# -------------------------------------------------
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    }
-    h1, h2, h3 {
-        color: #00D9FF !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# -------------------------------------------------
-# CORE CONSOLIDATION LOGIC
-# -------------------------------------------------
-def consolidate_contacts_expanded_df(df: pd.DataFrame) -> pd.DataFrame:
+# =================================================
+# CORE LOGIC
+# =================================================
+def consolidate_contacts(df: pd.DataFrame):
     required_cols = [
         "Grantor", "Grantor Address",
         "Instrument Date", "Record Date",
         "Section", "Township",
         "Area (Acres)", "County/Parish"
     ]
-
     for col in required_cols:
         if col not in df.columns:
             df[col] = None
 
-    # Normalize name + address
+    # Normalize
     df["Grantor_Clean"] = df["Grantor"].astype(str).str.strip().str.upper()
     df["Address_Clean"] = df["Grantor Address"].astype(str).str.strip().str.upper()
 
-    # Activity date (newest wins)
+    # Activity date
     df["Sort_Date"] = pd.to_datetime(df["Instrument Date"], errors="coerce")
     df["Sort_Date"] = df["Sort_Date"].fillna(
         pd.to_datetime(df["Record Date"], errors="coerce")
     )
 
-    # -------- Level 1: TRUE DUPES (Person + Address) --------
-    def aggregate_person_address(group):
+    # ---------- LEVEL 1: PERSON + ADDRESS ----------
+    def agg_person_address(g):
         parcels = []
-        for _, r in group.iterrows():
+        for _, r in g.iterrows():
             s = str(r["Section"]).strip() if pd.notna(r["Section"]) else ""
             t = str(r["Township"]).strip() if pd.notna(r["Township"]) else ""
             if s or t:
                 parcels.append(f"{s} ({t})")
 
         return pd.Series({
-            "Grantor Name": group["Grantor"].iloc[0],
-            "Grantor Address": group["Grantor Address"].iloc[0],
-            "Total Acres": group["Area (Acres)"].fillna(0).sum(),
-            "Parcels List": " | ".join(sorted(set(parcels))),
-            "Counties": ", ".join(sorted(group["County/Parish"].dropna().unique())),
-            "Last Activity": group["Sort_Date"].max()
+            "Grantor Name": g["Grantor"].iloc[0],
+            "Grantor Address": g["Grantor Address"].iloc[0],
+            "Address Acres": g["Area (Acres)"].fillna(0).sum(),
+            "Address Parcels": " | ".join(sorted(set(parcels))),
+            "Counties": ", ".join(sorted(g["County/Parish"].dropna().unique())),
+            "Last Activity": g["Sort_Date"].max()
         })
 
     address_level = (
         df
         .groupby(["Grantor_Clean", "Address_Clean"], as_index=False)
-        .apply(aggregate_person_address)
+        .apply(agg_person_address)
         .reset_index(drop=True)
     )
 
-    # -------- Level 2: PERSON CONSOLIDATION --------
-    def aggregate_person(group):
-        group = group.sort_values("Last Activity", ascending=False)
-        addresses = group["Grantor Address"].tolist()
+    # ---------- LEVEL 2: PERSON ----------
+    def agg_person(g):
+        g = g.sort_values("Last Activity", ascending=False)
 
-        address_cols = {
-            f"Address_{i+1}": addr
-            for i, addr in enumerate(addresses)
+        out = {
+            "Grantor Name": g["Grantor Name"].iloc[0],
+            "Phone Number": "",
+            "Total Acres": g["Address Acres"].sum(),
+            "Counties": ", ".join(sorted(set(
+                ", ".join(g["Counties"]).split(", ")
+            ))),
+            "Dupe_Logic_Version": DUPE_LOGIC_VERSION
         }
 
-        return pd.Series({
-            "Grantor Name": group["Grantor Name"].iloc[0],
-            "Phone Number": "",
-            "Total Acres": group["Total Acres"].sum(),
-            "Parcels List": " | ".join(sorted(set(
-                " | ".join(group["Parcels List"]).split(" | ")
-            ))),
-            "Counties": ", ".join(sorted(set(
-                ", ".join(group["Counties"]).split(", ")
-            ))),
-            **address_cols
-        })
+        for i, row in enumerate(g.itertuples(index=False), start=1):
+            out[f"Address_{i}"] = row._2
+            out[f"Address_{i}_Acres"] = row._3
+            out[f"Address_{i}_Parcels"] = row._4
+
+        return pd.Series(out)
 
     final_df = (
         address_level
         .groupby("Grantor_Clean", as_index=False)
-        .apply(aggregate_person)
+        .apply(agg_person)
         .reset_index(drop=True)
     )
 
-    return final_df
+    return final_df, address_level
 
 
-# -------------------------------------------------
-# METRICS (DEFENSIVE / SAFE)
-# -------------------------------------------------
-def calculate_metrics(raw_df, result_df):
-    metrics = {
-        "before": len(raw_df),
-        "after": len(result_df),
-        "removed": len(raw_df) - len(result_df),
-        "total_acres": None
+# =================================================
+# METRICS (NO COLUMN ASSUMPTIONS)
+# =================================================
+def calculate_metrics(raw_df, address_level_df, final_df):
+    return {
+        "records_before": len(raw_df),
+        "records_after": len(final_df),
+        "duplicates_collapsed": len(raw_df) - len(final_df),
+        "total_acres": address_level_df["Address Acres"].sum()
     }
 
-    for col in result_df.columns:
-        if str(col).strip().lower() == "total acres":
-            metrics["total_acres"] = result_df[col].fillna(0).sum()
-            break
 
-    return metrics
-
-
-# -------------------------------------------------
+# =================================================
 # UI
-# -------------------------------------------------
+# =================================================
 st.title("🎯 DoubleBarrel.Quest")
-st.markdown(
-    "<h3 style='text-align:center;color:#94A3B8;'>Land Lease Contact Consolidation</h3>",
-    unsafe_allow_html=True
-)
+st.markdown("**Land-Grade Landowner Consolidation**")
 st.markdown("---")
 
-with st.expander("🧠 How duplicates are defined"):
-    st.markdown("""
-    **Duplicate definition**
-    - Same Grantor
-    - Same Grantor Address
+with st.expander("🧠 Duplicate Logic (Audit Safe)"):
+    st.markdown(f"""
+    **Version:** `{DUPE_LOGIC_VERSION}`
 
-    **Behavior**
-    - Consolidates minerals & acres per address
-    - Preserves multiple addresses
-    - Orders addresses newest → oldest
-    - Never drops ownership data
+    - Duplicate = Same Grantor **AND** Same Address
+    - Minerals & acres consolidated per address
+    - Multiple addresses preserved (newest → oldest)
+    - No ownership data dropped
     """)
-
-st.markdown("### 📤 Upload Land Lease File")
 
 uploaded_file = st.file_uploader(
     "Upload CSV or Excel",
     type=["csv", "xls", "xlsx"]
 )
 
-# -------------------------------------------------
-# MAIN FLOW
-# -------------------------------------------------
 if uploaded_file:
     try:
         if uploaded_file.name.lower().endswith(".csv"):
@@ -170,44 +133,40 @@ if uploaded_file:
         else:
             df = pd.read_excel(uploaded_file)
     except Exception as e:
-        st.error(f"Error reading file: {e}")
+        st.error(f"File error: {e}")
         st.stop()
 
-    st.success(f"Loaded {len(df)} records")
+    st.success(f"Loaded {len(df)} rows")
 
     with st.expander("Preview Input"):
         st.dataframe(df.head(10), use_container_width=True)
 
-    with st.spinner("⚙️ Consolidating records..."):
-        result_df = consolidate_contacts_expanded_df(df)
-        metrics = calculate_metrics(df, result_df)
+    with st.spinner("⚙️ Consolidating…"):
+        final_df, address_level = consolidate_contacts(df)
+        metrics = calculate_metrics(df, address_level, final_df)
 
     st.success("✅ Consolidation Complete")
 
-    # -------- SUMMARY --------
+    # -------- METRICS --------
     st.markdown("### 📊 Summary")
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric("Records Before", metrics["before"])
-    c2.metric("Records After", metrics["after"])
-    c3.metric("Duplicates Collapsed", metrics["removed"])
-
-    if metrics["total_acres"] is not None:
-        c4.metric("Total Acres", f"{metrics['total_acres']:,.2f}")
-    else:
-        c4.metric("Total Acres", "N/A")
+    c1.metric("Records Before", metrics["records_before"])
+    c2.metric("Records After", metrics["records_after"])
+    c3.metric("Duplicates Collapsed", metrics["duplicates_collapsed"])
+    c4.metric("Total Acres", f"{metrics['total_acres']:,.2f}")
 
     # -------- DOWNLOAD --------
-    csv = result_df.to_csv(index=False).encode("utf-8")
+    csv = final_df.to_csv(index=False).encode("utf-8")
     st.download_button(
         "📥 Download Consolidated CSV",
         data=csv,
-        file_name="DoubleBarrel_Consolidated.csv",
+        file_name="DoubleBarrel_Consolidated_AuditSafe.csv",
         mime="text/csv"
     )
 
     with st.expander("Preview Output"):
-        st.dataframe(result_df.head(10), use_container_width=True)
+        st.dataframe(final_df.head(10), use_container_width=True)
 
 else:
     st.info("👆 Upload a file to begin")
@@ -215,7 +174,7 @@ else:
 st.markdown("---")
 st.markdown(
     "<p style='text-align:center;opacity:0.8;'>"
-    "🔒 Secure • 🎯 Land-Grade Logic • ⚡ Fast<br>"
+    "🔒 Audit-Safe • 🎯 Address-Strict • ⚡ Land-Grade<br>"
     "<strong>DoubleBarrel.Quest</strong>"
     "</p>",
     unsafe_allow_html=True
