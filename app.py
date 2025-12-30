@@ -1,23 +1,24 @@
 import streamlit as st
 import pandas as pd
 
-# =================================================
+# ===============================
 # CONFIG
-# =================================================
+# ===============================
 DUPE_LOGIC_VERSION = "address_v1_strict"
-MAX_ADDRESSES = 5     # increase if needed
-MAX_COUNTIES = 3      # CRM-safe limit
+MAX_ADDRESSES = 5
+MAX_COUNTIES = 3
 
 st.set_page_config(
-    page_title="DoubleBarrel.Quest – Zoho-Ready Consolidation",
+    page_title="DoubleBarrel.Quest – Zoho Ready",
     page_icon="🎯",
     layout="wide"
 )
 
-# =================================================
-# CORE CONSOLIDATION LOGIC
-# =================================================
-def consolidate_for_zoho(df: pd.DataFrame) -> pd.DataFrame:
+# ===============================
+# CONSOLIDATION LOGIC
+# ===============================
+def consolidate_for_zoho(df: pd.DataFrame):
+
     required_cols = [
         "Grantor", "Grantor Address",
         "Instrument Date", "Record Date",
@@ -26,11 +27,11 @@ def consolidate_for_zoho(df: pd.DataFrame) -> pd.DataFrame:
     ]
     for col in required_cols:
         if col not in df.columns:
-            df[col] = None
+            df[col] = ""
 
-    # Normalize identity
-    df["Grantor_Clean"] = df["Grantor"].astype(str).str.strip().str.upper()
-    df["Address_Clean"] = df["Grantor Address"].astype(str).str.strip().str.upper()
+    # Normalize
+    df["Grantor_Clean"] = df["Grantor"].astype(str).str.upper().str.strip()
+    df["Address_Clean"] = df["Grantor Address"].astype(str).str.upper().str.strip()
 
     # Activity date
     df["Sort_Date"] = pd.to_datetime(df["Instrument Date"], errors="coerce")
@@ -38,68 +39,99 @@ def consolidate_for_zoho(df: pd.DataFrame) -> pd.DataFrame:
         pd.to_datetime(df["Record Date"], errors="coerce")
     )
 
-    # -------- LEVEL 1: TRUE DUPES (Grantor + Address) --------
-    def agg_person_address(g):
+    # ---------- Address-level ----------
+    address_rows = []
+    for (_, _), g in df.groupby(["Grantor_Clean", "Address_Clean"]):
         parcels = []
         for _, r in g.iterrows():
-            s = str(r["Section"]).strip() if pd.notna(r["Section"]) else ""
-            t = str(r["Township"]).strip() if pd.notna(r["Township"]) else ""
+            s = str(r["Section"]).strip()
+            t = str(r["Township"]).strip()
             if s or t:
                 parcels.append(f"{s} ({t})")
 
-        return pd.Series({
-            "Grantor Name": g["Grantor"].iloc[0],
+        address_rows.append({
+            "Grantor": g["Grantor"].iloc[0],
             "Address": g["Grantor Address"].iloc[0],
-            "Address_Acres": g["Area (Acres)"].fillna(0).sum(),
+            "Address_Acres": pd.to_numeric(g["Area (Acres)"], errors="coerce").fillna(0).sum(),
             "Address_Parcels": ", ".join(sorted(set(parcels))),
-            "County_List": ", ".join(sorted(g["County/Parish"].dropna().unique())),
+            "Counties": ", ".join(sorted(g["County/Parish"].dropna().unique())),
             "Last_Activity": g["Sort_Date"].max()
         })
 
-    address_level = (
-        df
-        .groupby(["Grantor_Clean", "Address_Clean"], as_index=False)
-        .apply(agg_person_address)
-        .reset_index(drop=True)
-    )
+    address_df = pd.DataFrame(address_rows)
 
-    # -------- LEVEL 2: OWNER → FLAT CRM ROW --------
-    def agg_owner(g):
+    # ---------- Owner-level (flat CRM row) ----------
+    final_rows = []
+
+    for owner, g in address_df.groupby("Grantor"):
         g = g.sort_values("Last_Activity", ascending=False)
 
-        out = {
-            "Owner_Name": g["Grantor Name"].iloc[0],
+        row = {
+            "Owner_Name": owner,
             "Phone": "",
             "Total_Acres": g["Address_Acres"].sum(),
             "Dupe_Logic_Version": DUPE_LOGIC_VERSION
         }
 
-        # Counties (flat)
-        counties = sorted(set(
-            ", ".join(g["County_List"]).split(", ")
-        ))[:MAX_COUNTIES]
+        counties = sorted(
+            set(", ".join(g["Counties"]).split(", "))
+        )[:MAX_COUNTIES]
 
-        for i, c in enumerate(counties, start=1):
-            out[f"County_{i}"] = c
+        for i, c in enumerate(counties, 1):
+            row[f"County_{i}"] = c
 
-        # Addresses (flat, numbered)
-        for i, row in enumerate(g.itertuples(index=False), start=1):
+        for i, (_, r) in enumerate(g.iterrows(), 1):
             if i > MAX_ADDRESSES:
                 break
-            out[f"Address_{i}"] = row.Address
-            out[f"Address_{i}_Acres"] = row.Address_Acres
-            out[f"Address_{i}_Parcels"] = row.Address_Parcels
+            row[f"Address_{i}"] = r["Address"]
+            row[f"Address_{i}_Acres"] = r["Address_Acres"]
+            row[f"Address_{i}_Parcels"] = r["Address_Parcels"]
 
-        return pd.Series(out)
+        final_rows.append(row)
 
-    final_df = (
-        address_level
-        .groupby("Grantor_Clean", as_index=False)
-        .apply(agg_owner)
-        .reset_index(drop=True)
+    return pd.DataFrame(final_rows), address_df
+
+
+# ===============================
+# UI
+# ===============================
+st.title("🎯 DoubleBarrel.Quest")
+st.markdown("**Zoho-Ready Landowner Consolidation**")
+st.markdown("---")
+
+uploaded_file = st.file_uploader(
+    "Upload CSV or Excel",
+    type=["csv", "xls", "xlsx"]
+)
+
+if uploaded_file:
+    if uploaded_file.name.lower().endswith(".csv"):
+        df = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
+    else:
+        df = pd.read_excel(uploaded_file)
+
+    st.success(f"Loaded {len(df)} records")
+
+    with st.spinner("Consolidating…"):
+        final_df, address_df = consolidate_for_zoho(df)
+
+    st.success("✅ Complete")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Input Rows", len(df))
+    c2.metric("Owners", len(final_df))
+    c3.metric("Addresses", len(address_df))
+    c4.metric("Total Acres", f"{address_df['Address_Acres'].sum():,.2f}")
+
+    csv = final_df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "📥 Download Zoho-Ready CSV",
+        csv,
+        "DoubleBarrel_Zoho.csv",
+        "text/csv"
     )
 
-    return final_df, address_level
+    st.dataframe(final_df.head(10), use_container_width=True)
 
-
-# ===========
+else:
+    st.info("Upload a file to begin")
